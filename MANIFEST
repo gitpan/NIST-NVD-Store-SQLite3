@@ -17,4 +17,5 @@ t/update.t
 t/insert.t
 t/query.t
 bin/convert-nvdcve
-META.yml                                 Module meta-data (added by MakeMaker)
+META.yml                                 Module YAML meta-data (added by MakeMaker)
+META.json                                Module JSON meta-data (added by MakeMaker)

@@ -1,22 +1,23 @@
---- #YAML:1.0
-name:               NIST-NVD-Store-SQLite3
-version:            0.01
-abstract:           SQLite3 store for NIST::NVD
+---
+abstract: 'SQLite3 store for NIST::NVD'
 author:
-    - C.J. Adams-Collier <cjac@f5.com>
-license:            perl
-distribution_type:  module
-configure_requires:
-    ExtUtils::MakeMaker:  0
+  - 'C.J. Adams-Collier <cjac@f5.com>'
 build_requires:
-    ExtUtils::MakeMaker:  0
-requires:
-    Test::More:  0
-no_index:
-    directory:
-        - t
-        - inc
-generated_by:       ExtUtils::MakeMaker version 6.57_05
+  ExtUtils::MakeMaker: 0
+configure_requires:
+  ExtUtils::MakeMaker: 0
+dynamic_config: 1
+generated_by: 'ExtUtils::MakeMaker version 6.62, CPAN::Meta::Converter version 2.112150'
+license: perl
 meta-spec:
-    url:      http://module-build.sourceforge.net/META-spec-v1.4.html
-    version:  1.4
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: NIST-NVD-Store-SQLite3
+no_index:
+  directory:
+    - t
+    - inc
+requires:
+  Test::File: 0
+  Test::More: 0
+version: 0.02
