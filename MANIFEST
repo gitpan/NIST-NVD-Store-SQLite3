@@ -16,6 +16,8 @@ t/sqlite3.t
 t/update.t
 t/insert.t
 t/query.t
+t/cwe.t
 bin/convert-nvdcve
+t/data/cwec_v2.1.xml
 META.yml                                 Module YAML meta-data (added by MakeMaker)
 META.json                                Module JSON meta-data (added by MakeMaker)
