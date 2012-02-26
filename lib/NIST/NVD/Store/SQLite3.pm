@@ -4,9 +4,6 @@ use NIST::NVD::Store::Base;
 use base qw{NIST::NVD::Store::Base};
 use Carp;
 
-use IO::Uncompress::Bunzip2 qw(bunzip2 $Bunzip2Error);
-use IO::Compress::Bzip2 qw(bzip2 $Bzip2Error);
-
 use warnings;
 use strict;
 
@@ -20,11 +17,11 @@ NIST::NVD::Store::SQLite3 - SQLite3 store for NIST::NVD
 
 =head1 VERSION
 
-Version 0.03
+Version 0.04
 
 =cut
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 my %query = (
     cpe_create => qq{

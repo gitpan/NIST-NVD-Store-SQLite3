@@ -22,7 +22,10 @@
    "prereqs" : {
       "build" : {
          "requires" : {
-            "ExtUtils::MakeMaker" : 0
+            "File::LibMagic" : 0,
+            "File::MMagic" : 0,
+            "Test::File" : 0,
+            "Test::More" : 0
          }
       },
       "configure" : {
@@ -32,11 +35,14 @@
       },
       "runtime" : {
          "requires" : {
-            "Test::File" : 0,
-            "Test::More" : 0
+            "Carp" : 0,
+            "DBD::SQLite" : 0,
+            "Storable" : 0,
+            "Time::HiRes" : 0,
+            "XML::XPath" : 0
          }
       }
    },
    "release_status" : "stable",
-   "version" : "0.03"
+   "version" : "0.04"
 }
