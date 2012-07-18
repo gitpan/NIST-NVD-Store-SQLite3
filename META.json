@@ -22,10 +22,12 @@
    "prereqs" : {
       "build" : {
          "requires" : {
-            "File::LibMagic" : 0,
-            "File::MMagic" : 0,
-            "Test::File" : 0,
-            "Test::More" : 0
+            "Perl::Critic" : 0,
+            "Test::More" : 0,
+            "Test::Pod" : 0,
+            "Test::Pod::Coverage" : 0,
+            "XML::XPath" : 0,
+            "XML::XPath::XMLParser" : 0
          }
       },
       "configure" : {
@@ -35,14 +37,14 @@
       },
       "runtime" : {
          "requires" : {
-            "Carp" : 0,
             "DBD::SQLite" : 0,
-            "Storable" : 0,
+            "DBI" : 0,
+            "NIST::NVD" : "1",
             "Time::HiRes" : 0,
             "XML::XPath" : 0
          }
       }
    },
    "release_status" : "stable",
-   "version" : "0.04"
+   "version" : "v1.00.00"
 }

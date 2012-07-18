@@ -10,6 +10,8 @@ use Carp;
 
 use Getopt::Long;
 
+my $decimal_re = qr/^\d+$/;
+
 my ( $nvd, $store, $cwe );
 
 my %done             = ();
@@ -35,7 +37,6 @@ my $result = GetOptions(
 use NIST::NVD::Update;
 
 $nvd ||= 'nvdcve-2.0-recent.xml';
-$cwe ||= 'cwec_v2.1.xml';
 
 $store ||= 'DB_File';
 
@@ -47,6 +48,12 @@ my $NVD_Updater = NIST::NVD::Update->new(
     store    => $store,
     database => $db_file,
 );
+
+my %important_fields;
+
+$important_fields{$_}++ foreach $NVD_Updater->{store}->_important_fields();
+
+my $cwe_ids = $NVD_Updater->get_cwe_ids();
 
 my %vuln_software;
 my %weaknesses;
@@ -74,18 +81,6 @@ print "Done.\n";
 
 printf( "read \%i nvd entries\n", int keys $nvd_entries );
 
-print "Processing CWE file...";
-
-my $cwe_data = process_cwe_file($cwe);
-
-print "Done.\n";
-
-printf( "read \%i cwe Views\n",      int keys $cwe_data->{View} );
-printf( "read \%i cwe Categories\n", int keys $cwe_data->{Category} );
-printf( "read \%i cwe Weaknesses\n", int keys $cwe_data->{Weakness} );
-printf( "read \%i cwe Compound Elements\n",
-    int keys $cwe_data->{Compound_Element} );
-
 print "Writing CPE URNs to disk...";
 
 $NVD_Updater->put_cpe( [ keys %vuln_software ] );
@@ -98,11 +93,21 @@ $NVD_Updater->put_nvd_entries($nvd_entries);
 
 print " Done.\n";
 
-print "Writing CWE data to disk...";
+my $cwe_data;
 
-$NVD_Updater->put_cwe_data($cwe_data);
+if( -f $cwe ){
+	print "Processing CWE file...";
 
-print " Done.\n";
+	$cwe_data = process_cwe_file($cwe);
+
+	print "\nDone processing CWE file.\n";
+
+
+	printf( "read \%i cwe Categories\n", int keys $cwe_data->{Category} );
+	printf( "read \%i cwe Weaknesses\n", int keys $cwe_data->{Weakness} );
+	printf( "read \%i cwe Views\n",      int keys $cwe_data->{View} );
+
+}
 
 print "Writing CPE index to disk...";
 
@@ -110,11 +115,27 @@ $NVD_Updater->put_cve_idx_cpe( \%vuln_software );
 
 print "Done.\n";
 
-print "Writing CWE index to disk...";
+if( -f $cwe ){
 
-$NVD_Updater->put_cwe_idx_cpe( \%weaknesses );
+	print "Writing CWE data to disk...";
 
-print "Done.\n";
+	$NVD_Updater->put_cwe_data($cwe_data);
+
+	print " Done.\n";
+
+	print "Writing CWE index to disk...";
+
+	$NVD_Updater->put_cwe_idx_cve($nvd_entries);
+	$NVD_Updater->put_cwe_idx_cpe( \%weaknesses );
+
+	print "Done.\n";
+
+	print "Writing websec index to disk...";
+
+	$NVD_Updater->update_websec_idx_cpe( \%weaknesses );
+
+	print "Done\n";
+}
 
 sub process_nvd_file {
 
@@ -133,6 +154,8 @@ sub process_nvd_file {
     open( $nvdcve_fd, q{<}, $filename )
         or die qq{couldn't open "$filename": $!};
 
+    my $entry_count = 0;
+
     while ( my $line = <$nvdcve_fd> ) {
 
         if ( $line =~ /(^.*?)<entry/ ) {
@@ -142,7 +165,7 @@ sub process_nvd_file {
             if ($header) {
                 $entry_body = $content;
                 my $xml_string = $header . $entry_body . $footer;
-                print(".");
+                print '.' if ++$entry_count % 100 == 0;
                 my %entry = process_nvd($xml_string);
 
                 while ( my ( $cve_id, $entry ) = each %entry ) {
@@ -203,7 +226,7 @@ sub process_nvd {
 
     return (%entry);
 
-    #  $xp->dispose();
+    #$xp->dispose();
 }
 
 sub process_entry {
@@ -213,7 +236,11 @@ sub process_entry {
 
     foreach my $vuln ( $entry->getChildNodes() ) {
         next unless $vuln->getName();
+
         my $nodeName = $vuln->getName();
+
+        # skip the dull bits
+        next unless exists $important_fields{$nodeName};
 
         if ( $nodeName eq 'vuln:vulnerable-configuration' ) {
             push( @{ $results->{$nodeName} }, process_vuln_config($vuln) );
@@ -230,7 +257,8 @@ sub process_entry {
         } elsif ( $nodeName eq 'vuln:cvss' ) {
             $results->{$nodeName} = process_vuln_cvss($vuln);
         } elsif ( $nodeName eq 'vuln:cwe' ) {
-            push( @{ $results->{$nodeName} }, $vuln->getAttribute('id') );
+            my $cwe_id = $vuln->getAttribute('id');
+            push( @{ $results->{$nodeName} }, $cwe_id );
         } elsif ( $nodeName eq 'vuln:references' ) {
             push( @{ $results->{$nodeName} },
                 process_vuln_references($vuln) );
@@ -456,6 +484,8 @@ sub process_cwe_file {
         Compound_Element => 'Compound_Elements',
     );
 
+    my $weakness_count = 0;
+
     while ( my $line = <$cwe_fd> ) {
         if (   $line =~ /(^.*?)<(View|Category|Weakness|Compound_Element)[> ]/
             || $line =~ m:(^.*?)</Weakness_Catalog>:    # last entry
@@ -464,10 +494,11 @@ sub process_cwe_file {
             my $tail         = $1;
             my $next_element = $2;
             my $lcelement    = lc $next_element if $next_element;
-						my $funcname;
+            my $funcname;
             if ( !$current_element ) {
                 $current_element = $next_element;
-                $funcname = "process_$lcelement";
+                $funcname        = "process_$lcelement";
+                print STDERR "\nfunction: [$funcname]\n";
                 $function = \&$funcname;
                 $line =~ s/^$tail//;
                 $content = $line;
@@ -500,9 +531,41 @@ sub process_cwe_file {
                 || $current_element eq 'Weakness'
                 || $current_element eq 'Compound_Element' );
 
+            print 'w'
+                if $current_element eq 'Weakness'
+                    && ++$weakness_count % 100 == 0;
+
             my ( $id, $element ) = $function->($xml_string);
 
-            $CWE_Entry_HASH->{$current_element}->{$id} = $element;
+            my $cwe_id;
+
+            if ( $id =~ $decimal_re ) {
+                $cwe_id = sprintf( 'CWE-%d', $id );
+            } elsif ( $id =~ /^CWE-\d+$/ ) {
+                $cwe_id = $id;
+            } elsif ( $id eq 'compound_id' ) {
+
+                # not yet implemented
+                next;
+            } else {
+                die "id [$id] is unrecognized";
+            }
+
+            $CWE_Entry_HASH->{$current_element}->{$cwe_id} = $element;
+
+            if ( exists( $cwe_ids->{$cwe_id} ) ) {
+
+                # TODO: Update
+            } else {
+                my $frozen = nfreeze($element);
+
+                $NVD_Updater->put_cwe(
+                    cwe_id        => $id,
+                    cwe_dump      => nfreeze($element),
+                    transactional => 1,
+                );
+
+            }
 
             $iter++;
 
@@ -511,7 +574,9 @@ sub process_cwe_file {
 
             if ( $next_element && $current_element ne $next_element ) {
                 $current_element = $next_element;
-                $funcname = "process_$lcelement";
+                $funcname        = "process_$lcelement";
+                print STDERR "\nfunction: [$funcname]\n";
+
                 $function = \&$funcname;
             }
 
@@ -521,6 +586,8 @@ sub process_cwe_file {
 
     }
 
+    $NVD_Updater->{store}->_commit('put_cwe_insert');
+
     return $CWE_Entry_HASH;
 }
 
@@ -528,8 +595,6 @@ sub process_weakness {
     my ($weakness_xml) = @_;
 
     my $results = {};
-
-    print "w";
 
     my $xp = eval { XML::XPath->new( xml => $weakness_xml ) };
     croak "couldn't parse xml:\n" . $weakness_xml . "\n\n" . $@ if $@;
@@ -544,7 +609,17 @@ sub process_weakness {
 
     foreach my $attr ( $weakness->getAttributes() ) {
         next unless $attr;
-        $results->{ $attr->getName() } = $attr->getNodeValue();
+
+        my $attrName  = $attr->getName();
+        my $attrValue = $attr->getNodeValue();
+
+        if ( lc $attrName eq 'id'
+            && $attrValue =~ /^\d+$/ )
+        {
+            $attrValue = sprintf( 'CWE-%d', $attrValue );
+        }
+
+        $results->{$attrName} = $attrValue;
     }
 
     foreach my $element ( $weakness->getChildNodes() ) {
@@ -749,13 +824,21 @@ sub process_view {
 
     croak("there should be one and only one node") if int @view_nodelist != 1;
 
-    my $view_id = 'x';
-
     my $view = $view_nodelist[0];
 
     foreach my $attr ( $view->getAttributes() ) {
         next unless $attr;
-        $results->{ $attr->getName() } = $attr->getNodeValue();
+
+        my $attrName  = $attr->getName();
+        my $attrValue = $attr->getNodeValue();
+
+        if ( lc $attrName eq 'id'
+            && $attrValue =~ /^\d+$/ )
+        {
+            $attrValue = sprintf( 'CWE-%d', $attrValue );
+        }
+
+        $results->{$attrName} = $attrValue;
     }
 
     foreach my $element ( $view->getChildNodes() ) {
@@ -816,7 +899,17 @@ sub process_category {
 
     foreach my $attr ( $category->getAttributes() ) {
         next unless $attr;
-        $results->{ $attr->getName() } = $attr->getNodeValue();
+
+        my $attrName  = $attr->getName();
+        my $attrValue = $attr->getNodeValue();
+
+        if ( lc $attrName eq 'id'
+            && $attrValue =~ /^\d+$/ )
+        {
+            $attrValue = sprintf( 'CWE-%d', $attrValue );
+        }
+
+        $results->{$attrName} = $attrValue;
     }
 
     my $category_id = $results->{ID};

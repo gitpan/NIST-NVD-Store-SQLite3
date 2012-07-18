@@ -3,10 +3,12 @@ abstract: 'SQLite3 store for NIST::NVD'
 author:
   - 'C.J. Adams-Collier <cjac@f5.com>'
 build_requires:
-  File::LibMagic: 0
-  File::MMagic: 0
-  Test::File: 0
+  Perl::Critic: 0
   Test::More: 0
+  Test::Pod: 0
+  Test::Pod::Coverage: 0
+  XML::XPath: 0
+  XML::XPath::XMLParser: 0
 configure_requires:
   ExtUtils::MakeMaker: 0
 dynamic_config: 1
@@ -21,9 +23,9 @@ no_index:
     - t
     - inc
 requires:
-  Carp: 0
   DBD::SQLite: 0
-  Storable: 0
+  DBI: 0
+  NIST::NVD: 1
   Time::HiRes: 0
   XML::XPath: 0
-version: 0.04
+version: v1.00.00

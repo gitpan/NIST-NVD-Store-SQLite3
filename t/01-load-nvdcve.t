@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 20;
+use Test::More tests => 21;
 use Test::File;
 use File::MMagic;
 use File::LibMagic;
@@ -61,8 +61,8 @@ my $output    = `$cmd`;
 my $end_run   = time();
 my $duration  = $end_run - $start_run;
 
-ok( $duration <= 20,
-    'took less than 20 seconds to load CWE data: ' . $duration );
+ok( $duration <= 60,
+    'took less than 60 seconds to load CWE data: ' . $duration );
 
 is( $?, 0, 'conversion script returned cleanly' ) or diag $output;
 file_exists_ok( $db_file, 'database file exists' );
@@ -81,6 +81,8 @@ is( $res, $type, "file is correct type: [$type]" ) or diag $res;
 my ($dev,  $ino,   $mode,  $nlink, $uid,     $gid, $rdev,
     $size, $atime, $mtime, $ctime, $blksize, $blocks
 ) = stat($db_file);
+
+like( $mtime, qr/^\d+$/, 'mtime is numeric' ) or diag "mtime: [$mtime]";
 
 my $nowish = time();
 
